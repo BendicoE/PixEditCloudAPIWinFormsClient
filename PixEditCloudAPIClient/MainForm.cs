@@ -126,7 +126,7 @@ namespace PixEditCloudAPIClient
         private void btnBrowseFile_Click(object sender, EventArgs e)
         {
             OpenFileDialog dlg = new();
-            dlg.Filter = "PDF documents (*.pdf)|*.pdf|All files (*.*)|*.*";
+            dlg.Filter = "PDF documents (*.pdf)|*.pdf|MS Office Documents (*.docx;*.doc;*.xlsx;*.xls;*.pptx;*.ppt)|*.docx;*.doc;*.xlsx;*.xls;*.pptx;*.ppt|All files (*.*)|*.*";
             if (dlg.ShowDialog() == DialogResult.OK)
                 txtFileName.Text = dlg.FileName;
         }
@@ -143,7 +143,7 @@ namespace PixEditCloudAPIClient
                     _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
                     string outputFileName = Path.Combine(
                         Path.GetDirectoryName(txtFileName.Text),
-                        Path.ChangeExtension(Path.GetFileNameWithoutExtension(txtFileName.Text) + " (Converted)", Path.GetExtension(txtFileName.Text)));
+                        Path.ChangeExtension(Path.GetFileNameWithoutExtension(txtFileName.Text) + " (Converted)", "pdf"));
 
                     using (var form = new MultipartFormDataContent())
                     {
