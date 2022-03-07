@@ -19,16 +19,13 @@ namespace PixEditCloudAPIClient
 {
     public partial class MainForm : Form
     {
-        static HttpClient _client = new HttpClient();
+        static HttpClient _client;
 
         private string _authToken = "";
 
         public MainForm()
         {
             InitializeComponent();
-            _client.BaseAddress = new(BaseUri);
-            _client.DefaultRequestHeaders.Accept.Clear();
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
         }
 
         private void linkOutputFile_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -71,30 +68,46 @@ namespace PixEditCloudAPIClient
             return uri;
         }
 
-        private async void MainForm_Load(object sender, EventArgs e)
+        private async void Connect()
         {
+            _client = new HttpClient();
+
+            _client.BaseAddress = new(BaseUri);
+            _client.DefaultRequestHeaders.Accept.Clear();
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+
+            try
+            {
+                HttpResponseMessage response = await _client.GetAsync(OperationUri(""));
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    JObject info = JObject.Parse(jsonString);
+                    txtInfo.Text = $"{info["appName"]}\r\nVersion {info["appVersion"]}\r\nPublished {info["publishedDate"]}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Connection failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            txtUrl.Text = Settings.Default.Url;
             txtUsername.Text = Settings.Default.Username;
             txtSerialNo.Text = Settings.Default.SerialNo;
             txtPassword.Text = Settings.Default.Password;
             txtSubscriptionKey.Text = Settings.Default.SubscriptionKey;
             cmbOutputFileFormat.SelectedIndex = Settings.Default.SelectedOutputFormat;
 
-            HttpResponseMessage response = await _client.GetAsync(OperationUri(""));
-
-            if (response.IsSuccessStatusCode)
-            {
-                var jsonString = await response.Content.ReadAsStringAsync();
-                JObject info = JObject.Parse(jsonString);
-                try
-                {
-                    txtInfo.Text = $"{info["appName"]}\r\nVersion {info["appVersion"]}\r\nPublished {info["publishedDate"]}";
-                }
-                catch { }
-            }
+            Connect();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            Settings.Default.Url = txtUrl.Text;
             Settings.Default.Username = txtUsername.Text;
             Settings.Default.SerialNo = txtSerialNo.Text;
             Settings.Default.Password = txtPassword.Text;
@@ -108,18 +121,27 @@ namespace PixEditCloudAPIClient
             var byteArray = Encoding.ASCII.GetBytes($"{txtUsername.Text}+{txtSerialNo.Text}:{txtPassword.Text}");
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
 
-            HttpResponseMessage response = await _client.GetAsync(OperationUri("Authenticate"));
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                _authToken = await response.Content.ReadAsStringAsync();
-                lblAuthenticated.Text = "OK";
-                btnConvert.Enabled = true;
+                HttpResponseMessage response = await _client.GetAsync(OperationUri("Authenticate"));
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _authToken = await response.Content.ReadAsStringAsync();
+                    lblAuthenticated.Text = "OK";
+                    btnConvert.Enabled = true;
+                }
+                else
+                {
+                    _authToken = "";
+                    lblAuthenticated.Text = "Failed";
+                }
             }
-            else
+            catch (Exception ex)
             {
                 _authToken = "";
-                lblAuthenticated.Text = "Failed";
+                lblAuthenticated.Text = "";
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -187,6 +209,11 @@ namespace PixEditCloudAPIClient
                 }
             }
 
+        }
+
+        private void btnConnect_Click(object sender, EventArgs e)
+        {
+            Connect();
         }
     }
 }
